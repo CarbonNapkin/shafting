@@ -235,8 +235,8 @@
             transition: transform 0.2s;
         }
         
-        details:not([open]) summary::before {
-            transform: rotate(-90deg);
+        details[open] summary::before {
+            transform: rotate(180deg);
         }
         
         summary:hover {
@@ -306,7 +306,8 @@
         .number-input-wrapper input[type="number"] {
             width: 70px;
             min-width: 0;
-            border-radius: 3px 0 0 3px;
+            border-radius: 0;
+            border-left: none;
             border-right: none;
             text-align: center;
         }
@@ -331,11 +332,11 @@
             justify-content: center;
         }
         
-        .number-input-buttons button:first-child {
-            border-right: 1px solid white;
+        .number-input-buttons:first-child button {
+            border-radius: 3px 0 0 3px;
         }
         
-        .number-input-buttons button:last-child {
+        .number-input-buttons:last-child button {
             border-radius: 0 3px 3px 0;
         }
         
@@ -345,6 +346,16 @@
         
         .number-input-buttons button:active {
             background: #BA4A00;
+        }
+        
+        .spinbox-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        
+        .spinbox-row > div {
+            flex: 1;
         }
         
         /* Corner condition radio cards */
@@ -687,7 +698,15 @@
         <div id="leadtime-display">Ships: Mon, Nov 4 (5 days)</div>
         <div class="header-group">
             <label for="quantity">Qty:</label>
-            <input type="number" id="quantity" value="1" min="1" max="1000">
+            <div class="number-input-wrapper">
+                <div class="number-input-buttons">
+                    <button type="button" onclick="adjustValue('quantity', -1)">-</button>
+                </div>
+                <input type="number" id="quantity" value="1" min="1" max="1000" step="1">
+                <div class="number-input-buttons">
+                    <button type="button" onclick="adjustValue('quantity', 1)">+</button>
+                </div>
+            </div>
         </div>
         <button id="add-to-cart">Add to Cart</button>
     </div>
@@ -888,12 +907,66 @@
                 </label>
             </div>
             
+            <div id="main-left-keyway-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                <p><strong>Configuration:</strong></p>
+                <div class="toggle-container">
+                    <button type="button" class="toggle-option active" data-keyway="main-left" data-config="captivated">Captivated</button>
+                    <button type="button" class="toggle-option" data-keyway="main-left" data-config="end">End</button>
+                </div>
+                
+                <p style="margin-top: 8px;"><strong>Keyway Size:</strong></p>
+                <select id="main-left-keyway-size">
+                    <!-- Populated dynamically based on shaft diameter -->
+                </select>
+                
+                <p style="margin-top: 8px;"><strong>Key Depth:</strong></p>
+                <p id="main-left-key-depth" style="margin: 4px 0; font-style: italic; color: #666;">-</p>
+                
+                <p style="margin-top: 8px;"><strong>Keyway Length:</strong></p>
+                <div class="number-input-wrapper">
+                    <div class="number-input-buttons">
+                        <button type="button" onclick="adjustValue('main-left-keyway-length', -0.125)">-</button>
+                    </div>
+                    <input type="number" id="main-left-keyway-length" value="1.0" min="0.125" max="24" step="0.125">
+                    <div class="number-input-buttons">
+                        <button type="button" onclick="adjustValue('main-left-keyway-length', 0.125)">+</button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="ios-toggle-row">
                 <span class="ios-toggle-label">Right Keyway</span>
                 <label class="ios-toggle">
                     <input type="checkbox" id="main-right-keyway-toggle">
                     <span class="ios-toggle-slider"></span>
                 </label>
+            </div>
+            
+            <div id="main-right-keyway-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                <p><strong>Configuration:</strong></p>
+                <div class="toggle-container">
+                    <button type="button" class="toggle-option active" data-keyway="main-right" data-config="captivated">Captivated</button>
+                    <button type="button" class="toggle-option" data-keyway="main-right" data-config="end">End</button>
+                </div>
+                
+                <p style="margin-top: 8px;"><strong>Keyway Size:</strong></p>
+                <select id="main-right-keyway-size">
+                    <!-- Populated dynamically based on shaft diameter -->
+                </select>
+                
+                <p style="margin-top: 8px;"><strong>Key Depth:</strong></p>
+                <p id="main-right-key-depth" style="margin: 4px 0; font-style: italic; color: #666;">-</p>
+                
+                <p style="margin-top: 8px;"><strong>Keyway Length:</strong></p>
+                <div class="number-input-wrapper">
+                    <div class="number-input-buttons">
+                        <button type="button" onclick="adjustValue('main-right-keyway-length', -0.125)">-</button>
+                    </div>
+                    <input type="number" id="main-right-keyway-length" value="1.0" min="0.125" max="24" step="0.125">
+                    <div class="number-input-buttons">
+                        <button type="button" onclick="adjustValue('main-right-keyway-length', 0.125)">+</button>
+                    </div>
+                </div>
             </div>
         </div>
     </details>
@@ -933,6 +1006,7 @@
             left: [],
             right: []
         };
+        let advancedMode = false;
 
         // ===========================================
         // TG&P MATERIAL RESTRICTIONS
@@ -981,6 +1055,191 @@
         });
 
         // ===========================================
+        // ADVANCED MODE TOGGLE
+        // ===========================================
+        const advancedToggle = document.getElementById('advanced-mode-toggle');
+        
+        function updateAdvancedMode() {
+            advancedMode = advancedToggle.checked;
+            
+            // Get all advanced feature elements
+            const advancedElements = document.querySelectorAll('.advanced-features');
+            
+            advancedElements.forEach(el => {
+                if (advancedMode) {
+                    el.style.display = 'block';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+            
+            updateHeight();
+            console.log('Advanced mode:', advancedMode);
+        }
+        
+        advancedToggle.addEventListener('change', updateAdvancedMode);
+
+        // ===========================================
+        // KEYWAY LOOKUP TABLE (ANSI B17.1)
+        // ===========================================
+        function getStandardKeyway(diameter) {
+            if (diameter < 0.4375) return { width: '1/16"', depth: '1/32"', widthVal: 0.0625, depthVal: 0.03125 };
+            if (diameter < 0.5625) return { width: '3/32"', depth: '3/64"', widthVal: 0.09375, depthVal: 0.046875 };
+            if (diameter < 0.875) return { width: '1/8"', depth: '1/16"', widthVal: 0.125, depthVal: 0.0625 };
+            if (diameter < 1.25) return { width: '3/16"', depth: '3/32"', widthVal: 0.1875, depthVal: 0.09375 };
+            if (diameter < 1.375) return { width: '1/4"', depth: '1/8"', widthVal: 0.25, depthVal: 0.125 };
+            if (diameter < 1.75) return { width: '5/16"', depth: '5/32"', widthVal: 0.3125, depthVal: 0.15625 };
+            if (diameter < 2.25) return { width: '3/8"', depth: '3/16"', widthVal: 0.375, depthVal: 0.1875 };
+            if (diameter < 2.75) return { width: '1/2"', depth: '1/4"', widthVal: 0.5, depthVal: 0.25 };
+            return { width: '5/8"', depth: '5/16"', widthVal: 0.625, depthVal: 0.3125 };
+        }
+        
+        function getAllKeywayOptions(maxDiameter) {
+            const allKeyways = [
+                { diameter: 0.4375, width: '1/16"', depth: '1/32"', widthVal: 0.0625, depthVal: 0.03125 },
+                { diameter: 0.5625, width: '3/32"', depth: '3/64"', widthVal: 0.09375, depthVal: 0.046875 },
+                { diameter: 0.875, width: '1/8"', depth: '1/16"', widthVal: 0.125, depthVal: 0.0625 },
+                { diameter: 1.25, width: '3/16"', depth: '3/32"', widthVal: 0.1875, depthVal: 0.09375 },
+                { diameter: 1.375, width: '1/4"', depth: '1/8"', widthVal: 0.25, depthVal: 0.125 },
+                { diameter: 1.75, width: '5/16"', depth: '5/32"', widthVal: 0.3125, depthVal: 0.15625 },
+                { diameter: 2.25, width: '3/8"', depth: '3/16"', widthVal: 0.375, depthVal: 0.1875 },
+                { diameter: 2.75, width: '1/2"', depth: '1/4"', widthVal: 0.5, depthVal: 0.25 },
+                { diameter: 3.0, width: '5/8"', depth: '5/16"', widthVal: 0.625, depthVal: 0.3125 }
+            ];
+            
+            // Return only keyways smaller than the shaft diameter
+            return allKeyways.filter(k => k.widthVal < maxDiameter);
+        }
+        
+        function populateKeywayOptions(selectId, diameter) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            const options = getAllKeywayOptions(diameter);
+            const standard = getStandardKeyway(diameter);
+            
+            select.innerHTML = '';
+            
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option.widthVal;
+                opt.textContent = `${option.width} × ${option.depth}`;
+                
+                // Select the standard size by default
+                if (option.width === standard.width) {
+                    opt.selected = true;
+                }
+                
+                select.appendChild(opt);
+            });
+            
+            // Update depth display
+            updateKeyDepth(selectId.replace('-size', ''));
+        }
+        
+        function updateKeyDepth(keyPrefix) {
+            const select = document.getElementById(`${keyPrefix}-size`);
+            const depthDisplay = document.getElementById(`${keyPrefix}-depth`);
+            
+            if (!select || !depthDisplay) return;
+            
+            const selectedWidth = parseFloat(select.value);
+            const allKeyways = [
+                { widthVal: 0.0625, depthVal: 0.03125, depth: '1/32"' },
+                { widthVal: 0.09375, depthVal: 0.046875, depth: '3/64"' },
+                { widthVal: 0.125, depthVal: 0.0625, depth: '1/16"' },
+                { widthVal: 0.1875, depthVal: 0.09375, depth: '3/32"' },
+                { widthVal: 0.25, depthVal: 0.125, depth: '1/8"' },
+                { widthVal: 0.3125, depthVal: 0.15625, depth: '5/32"' },
+                { widthVal: 0.375, depthVal: 0.1875, depth: '3/16"' },
+                { widthVal: 0.5, depthVal: 0.25, depth: '1/4"' },
+                { widthVal: 0.625, depthVal: 0.3125, depth: '5/16"' }
+            ];
+            
+            const keyway = allKeyways.find(k => k.widthVal === selectedWidth);
+            depthDisplay.textContent = keyway ? keyway.depth : '-';
+        }
+
+        // ===========================================
+        // MAIN SHAFT KEYWAY CONTROLS
+        // ===========================================
+        const mainDiameterSelect = document.getElementById('main-diameter');
+        const mainLeftKeywayToggle = document.getElementById('main-left-keyway-toggle');
+        const mainRightKeywayToggle = document.getElementById('main-right-keyway-toggle');
+        const mainLeftKeywayControls = document.getElementById('main-left-keyway-controls');
+        const mainRightKeywayControls = document.getElementById('main-right-keyway-controls');
+        
+        // Initialize keyway options based on main diameter
+        function updateMainKeywayOptions() {
+            const diameter = parseFloat(mainDiameterSelect.value);
+            populateKeywayOptions('main-left-keyway-size', diameter);
+            populateKeywayOptions('main-right-keyway-size', diameter);
+        }
+        
+        // Show/hide keyway controls based on toggle
+        mainLeftKeywayToggle.addEventListener('change', function() {
+            mainLeftKeywayControls.style.display = this.checked ? 'block' : 'none';
+            if (this.checked) {
+                updateMainKeywayOptions();
+            }
+            updateHeight();
+        });
+        
+        mainRightKeywayToggle.addEventListener('change', function() {
+            mainRightKeywayControls.style.display = this.checked ? 'block' : 'none';
+            if (this.checked) {
+                updateMainKeywayOptions();
+            }
+            updateHeight();
+        });
+        
+        // Update keyway options when diameter changes
+        mainDiameterSelect.addEventListener('change', function() {
+            if (mainLeftKeywayToggle.checked) {
+                updateMainKeywayOptions();
+            }
+            if (mainRightKeywayToggle.checked) {
+                updateMainKeywayOptions();
+            }
+        });
+        
+        // Keyway size change handlers
+        document.getElementById('main-left-keyway-size')?.addEventListener('change', function() {
+            updateKeyDepth('main-left-keyway');
+        });
+        
+        document.getElementById('main-right-keyway-size')?.addEventListener('change', function() {
+            updateKeyDepth('main-right-keyway');
+        });
+        
+        // Captivated/End toggle handlers
+        document.querySelectorAll('[data-keyway]').forEach(button => {
+            button.addEventListener('click', function() {
+                const keyway = this.dataset.keyway;
+                const siblings = document.querySelectorAll(`[data-keyway="${keyway}"]`);
+                siblings.forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+        
+        // Number input adjustment helper
+        window.adjustValue = function(inputId, delta) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            
+            const currentValue = parseFloat(input.value) || 0;
+            const min = parseFloat(input.min) || 0;
+            const max = parseFloat(input.max) || 999;
+            const step = parseFloat(input.step) || 1;
+            
+            let newValue = currentValue + delta;
+            newValue = Math.max(min, Math.min(max, newValue));
+            newValue = Math.round(newValue / step) * step;
+            
+            input.value = newValue.toFixed(3).replace(/\.?0+$/, '');
+        };
+
+        // ===========================================
         // JOURNAL CREATION FUNCTIONS
         // ===========================================
         function createJournal(side) {
@@ -1015,28 +1274,229 @@
                             </label>
                         </div>
                         
+                        <div id="${journalId}-keyway-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                            <p><strong>Configuration:</strong></p>
+                            <div class="toggle-container" style="margin-bottom: 12px;">
+                                <button type="button" class="toggle-option active" data-keyway="${journalId}-keyway" data-config="captivated">Captivated</button>
+                                <button type="button" class="toggle-option" data-keyway="${journalId}-keyway" data-config="end">End</button>
+                            </div>
+                            
+                            <p><strong>Size:</strong></p>
+                            <select id="${journalId}-keyway-size">
+                                <!-- Populated dynamically based on shaft diameter -->
+                            </select>
+                            
+                            <div class="advanced-features" style="display: none; margin-top: 8px;">
+                                <p><strong>Clocking:</strong></p>
+                                <select id="${journalId}-keyway-clocking">
+                                    <option value="0" selected>0°</option>
+                                    <option value="45">45°</option>
+                                    <option value="90">90°</option>
+                                    <option value="135">135°</option>
+                                    <option value="180">180°</option>
+                                    <option value="225">225°</option>
+                                    <option value="270">270°</option>
+                                    <option value="315">315°</option>
+                                </select>
+                            </div>
+                            
+                            <div id="${journalId}-keyway-location-controls" style="display: block; margin-top: 8px;">
+                                <div class="spinbox-row">
+                                    <div>
+                                        <p><strong>Length:</strong></p>
+                                        <div class="number-input-wrapper">
+                                            <div class="number-input-buttons">
+                                                <button type="button" onclick="adjustValue('${journalId}-keyway-length', -0.125)">-</button>
+                                            </div>
+                                            <input type="number" id="${journalId}-keyway-length" value="0.5" min="0.125" max="12" step="0.125">
+                                            <div class="number-input-buttons">
+                                                <button type="button" onclick="adjustValue('${journalId}-keyway-length', 0.125)">+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <p><strong>Location from ${side === 'left' ? 'Left' : 'Right'} End:</strong></p>
+                                        <div class="number-input-wrapper">
+                                            <div class="number-input-buttons">
+                                                <button type="button" onclick="adjustValue('${journalId}-keyway-location', -0.125)">-</button>
+                                            </div>
+                                            <input type="number" id="${journalId}-keyway-location" value="0.25" min="0" max="12" step="0.125">
+                                            <div class="number-input-buttons">
+                                                <button type="button" onclick="adjustValue('${journalId}-keyway-location', 0.125)">+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="ios-toggle-row">
-                            <span class="ios-toggle-label">Thread</span>
+                            <span class="ios-toggle-label">Retaining Ring</span>
                             <label class="ios-toggle">
-                                <input type="checkbox" id="${journalId}-thread">
+                                <input type="checkbox" id="${journalId}-retaining-ring">
                                 <span class="ios-toggle-slider"></span>
                             </label>
                         </div>
                         
-                        <div id="${journalId}-thread-controls" class="advanced-features" style="display: none;">
-                            <p><strong>Thread Type:</strong></p>
-                            <select id="${journalId}-thread-type">
-                                <option value="unc">UNC (Coarse)</option>
-                                <option value="unf">UNF (Fine)</option>
+                        <div id="${journalId}-retaining-ring-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                            <p><strong>Diameter:</strong></p>
+                            <select id="${journalId}-retaining-ring-diameter">
+                                <option value="0.25">1/4"</option>
+                                <option value="0.375">3/8"</option>
+                                <option value="0.5">1/2"</option>
+                                <option value="0.625" selected>5/8"</option>
                             </select>
-                            <p style="margin-top: 8px;"><strong>Thread Size:</strong></p>
-                            <select id="${journalId}-thread-size">
-                                <option value="1/4-20">1/4-20</option>
-                                <option value="5/16-18">5/16-18</option>
-                                <option value="3/8-16">3/8-16</option>
-                                <option value="1/2-13">1/2-13</option>
-                                <option value="5/8-11">5/8-11</option>
+                            
+                            <div class="spinbox-row" style="margin-top: 8px;">
+                                <div>
+                                    <p><strong>Width:</strong></p>
+                                    <div class="number-input-wrapper">
+                                        <div class="number-input-buttons">
+                                            <button type="button" onclick="adjustValue('${journalId}-retaining-ring-width', -0.0625)">-</button>
+                                        </div>
+                                        <input type="number" id="${journalId}-retaining-ring-width" value="0.125" min="0.0625" max="1" step="0.0625">
+                                        <div class="number-input-buttons">
+                                            <button type="button" onclick="adjustValue('${journalId}-retaining-ring-width', 0.0625)">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p><strong>Location from End:</strong></p>
+                                    <div class="number-input-wrapper">
+                                        <div class="number-input-buttons">
+                                            <button type="button" onclick="adjustValue('${journalId}-retaining-ring-location', -0.125)">-</button>
+                                        </div>
+                                        <input type="number" id="${journalId}-retaining-ring-location" value="0.5" min="0" max="12" step="0.125">
+                                        <div class="number-input-buttons">
+                                            <button type="button" onclick="adjustValue('${journalId}-retaining-ring-location', 0.125)">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="advanced-features" style="display: none;">
+                            <h4 style="margin-top: 12px;">Corner Condition Overrides</h4>
+                            <p><strong>Inside Corners:</strong></p>
+                            <select id="${journalId}-inside-corner">
+                                <option value="global" selected>Use Global</option>
+                                <option value="sharp">Sharp</option>
+                                <option value="chamfer">Chamfer</option>
+                                <option value="radius">Radius</option>
                             </select>
+                            
+                            <div id="${journalId}-inside-chamfer-controls" style="display: none; margin-top: 8px;">
+                                <label>Chamfer Distance: 
+                                    <select id="${journalId}-inside-chamfer-size">
+                                        <option value="0.015">0.015"</option>
+                                        <option value="0.030" selected>0.030"</option>
+                                        <option value="0.045">0.045"</option>
+                                        <option value="0.060">0.060"</option>
+                                    </select>
+                                </label>
+                            </div>
+                            
+                            <div id="${journalId}-inside-radius-controls" style="display: none; margin-top: 8px;">
+                                <label>Radius: 
+                                    <select id="${journalId}-inside-radius-size">
+                                        <option value="0.015">0.015"</option>
+                                        <option value="0.030">0.030"</option>
+                                        <option value="0.045">0.045"</option>
+                                        <option value="0.060" selected>0.060"</option>
+                                    </select>
+                                </label>
+                            </div>
+                            
+                            <p style="margin-top: 8px;"><strong>Outside Corners:</strong></p>
+                            <select id="${journalId}-outside-corner">
+                                <option value="global" selected>Use Global</option>
+                                <option value="sharp">Sharp</option>
+                                <option value="chamfer">Chamfer</option>
+                                <option value="radius">Radius</option>
+                            </select>
+                            
+                            <div id="${journalId}-outside-chamfer-controls" style="display: none; margin-top: 8px;">
+                                <label>Chamfer Distance: 
+                                    <select id="${journalId}-outside-chamfer-size">
+                                        <option value="0.015">0.015"</option>
+                                        <option value="0.030" selected>0.030"</option>
+                                        <option value="0.045">0.045"</option>
+                                        <option value="0.060">0.060"</option>
+                                    </select>
+                                </label>
+                            </div>
+                            
+                            <div id="${journalId}-outside-radius-controls" style="display: none; margin-top: 8px;">
+                                <label>Radius: 
+                                    <select id="${journalId}-outside-radius-size">
+                                        <option value="0.015">0.015"</option>
+                                        <option value="0.030">0.030"</option>
+                                        <option value="0.045">0.045"</option>
+                                        <option value="0.060" selected>0.060"</option>
+                                    </select>
+                                </label>
+                            </div>
+                            
+                            <h4 style="margin-top: 12px;">Threads</h4>
+                            
+                            <p><strong>Tapped Ends:</strong></p>
+                            <div class="ios-toggle-row">
+                                <span class="ios-toggle-label">Tapped Thread</span>
+                                <label class="ios-toggle">
+                                    <input type="checkbox" id="${journalId}-tapped-thread">
+                                    <span class="ios-toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div id="${journalId}-tapped-thread-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                                <p><strong>Thread Type:</strong></p>
+                                <select id="${journalId}-tapped-thread-type">
+                                    <option value="unc">UNC (Coarse)</option>
+                                    <option value="unf">UNF (Fine)</option>
+                                </select>
+                                <p style="margin-top: 8px;"><strong>Thread Size:</strong></p>
+                                <select id="${journalId}-tapped-thread-size">
+                                    <option value="1/4-20">1/4-20</option>
+                                    <option value="5/16-18">5/16-18</option>
+                                    <option value="3/8-16">3/8-16</option>
+                                    <option value="1/2-13">1/2-13</option>
+                                    <option value="5/8-11">5/8-11</option>
+                                </select>
+                            </div>
+                            
+                            <p style="margin-top: 8px;"><strong>Threaded Ends:</strong></p>
+                            <div class="ios-toggle-row">
+                                <span class="ios-toggle-label">Threaded End</span>
+                                <label class="ios-toggle">
+                                    <input type="checkbox" id="${journalId}-threaded-end">
+                                    <span class="ios-toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div id="${journalId}-threaded-end-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                                <p><strong>Thread Type:</strong></p>
+                                <select id="${journalId}-threaded-end-type">
+                                    <option value="unc">UNC (Coarse)</option>
+                                    <option value="unf">UNF (Fine)</option>
+                                </select>
+                                <p style="margin-top: 8px;"><strong>Thread Size:</strong></p>
+                                <select id="${journalId}-threaded-end-size">
+                                    <option value="1/4-20">1/4-20</option>
+                                    <option value="5/16-18">5/16-18</option>
+                                    <option value="3/8-16">3/8-16</option>
+                                    <option value="1/2-13">1/2-13</option>
+                                    <option value="5/8-11">5/8-11</option>
+                                </select>
+                            </div>
+                            
+                            <h4 style="margin-top: 12px;">Milled Flats</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
+                            
+                            <h4 style="margin-top: 12px;">Milled Slots</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
+                            
+                            <h4 style="margin-top: 12px;">Thru Holes</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
                         </div>
                         
                         <button type="button" class="remove-journal" data-journal-id="${journalId}" data-side="${side}" style="margin-top: 12px; width: 100%; background: #e74c3c; color: white; border-color: #c0392b;">
@@ -1058,14 +1518,387 @@
             tempDiv.innerHTML = journalHTML;
             container.appendChild(tempDiv.firstElementChild);
             
-            // Setup thread toggle handler
+            // Setup keyway toggle handler
+            const keywayToggle = document.getElementById(`${journalId}-keyway`);
+            const keywayControls = document.getElementById(`${journalId}-keyway-controls`);
+            
+            keywayToggle.addEventListener('change', function() {
+                keywayControls.style.display = this.checked ? 'block' : 'none';
+                if (this.checked) {
+                    // Populate keyway options when first enabled
+                    const diameter = parseFloat(document.getElementById(`${journalId}-diameter`).value);
+                    populateKeywayOptions(`${journalId}-keyway`, diameter);
+                }
+                updateHeight();
+            });
+            
+            // Setup captivated/end toggle buttons
+            const captivatedButtons = document.querySelectorAll(`[data-keyway="${journalId}-keyway"]`);
+            const locationControls = document.getElementById(`${journalId}-keyway-location-controls`);
+            
+            captivatedButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    captivatedButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const config = this.dataset.config;
+                    // Show location for captivated, hide for end
+                    locationControls.style.display = (config === 'captivated') ? 'block' : 'none';
+                    updateHeight();
+                });
+            });
+            
+            // Setup retaining ring toggle handler
+            const retainingRingToggle = document.getElementById(`${journalId}-retaining-ring`);
+            const retainingRingControls = document.getElementById(`${journalId}-retaining-ring-controls`);
+            
+            retainingRingToggle.addEventListener('change', function() {
+                retainingRingControls.style.display = this.checked ? 'block' : 'none';
+                updateHeight();
+            });
+            
+            // Setup diameter change handler
+            const diameterSelect = document.getElementById(`${journalId}-diameter`);
+            diameterSelect.addEventListener('change', function() {
+                if (keywayToggle.checked) {
+                    const diameter = parseFloat(this.value);
+                    populateKeywayOptions(`${journalId}-keyway`, diameter);
+                }
+                
+                // Update retaining ring diameter options to only show smaller than journal
+                const journalDiameter = parseFloat(this.value);
+                const retainingRingDiameterSelect = document.getElementById(`${journalId}-retaining-ring-diameter`);
+                Array.from(retainingRingDiameterSelect.options).forEach(option => {
+                    const optionValue = parseFloat(option.value);
+                    option.disabled = optionValue >= journalDiameter;
+                    if (option.selected && optionValue >= journalDiameter) {
+                        // Auto-select first valid option
+                        for (let i = 0; i < retainingRingDiameterSelect.options.length; i++) {
+                            if (parseFloat(retainingRingDiameterSelect.options[i].value) < journalDiameter) {
+                                retainingRingDiameterSelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                });
+                
+                updateHeight();
+            });
+            
+            // Setup corner condition override handlers
+            const insideCornerSelect = document.getElementById(`${journalId}-inside-corner`);
+            const insideChamferControls = document.getElementById(`${journalId}-inside-chamfer-controls`);
+            const insideRadiusControls = document.getElementById(`${journalId}-inside-radius-controls`);
+            
+            if (insideCornerSelect) {
+                insideCornerSelect.addEventListener('change', function() {
+                    insideChamferControls.style.display = 'none';
+                    insideRadiusControls.style.display = 'none';
+                    if (this.value === 'chamfer') {
+                        insideChamferControls.style.display = 'block';
+                    } else if (this.value === 'radius') {
+                        insideRadiusControls.style.display = 'block';
+                    }
+                    updateHeight();
+                });
+            }
+            
+            const outsideCornerSelect = document.getElementById(`${journalId}-outside-corner`);
+            const outsideChamferControls = document.getElementById(`${journalId}-outside-chamfer-controls`);
+            const outsideRadiusControls = document.getElementById(`${journalId}-outside-radius-controls`);
+            
+            if (outsideCornerSelect) {
+                outsideCornerSelect.addEventListener('change', function() {
+                    outsideChamferControls.style.display = 'none';
+                    outsideRadiusControls.style.display = 'none';
+                    if (this.value === 'chamfer') {
+                        outsideChamferControls.style.display = 'block';
+                    } else if (this.value === 'radius') {
+                        outsideRadiusControls.style.display = 'block';
+                    }
+                    updateHeight();
+                });
+            }
+            
+            // Setup tapped thread toggle handler
+            const tappedThreadToggle = document.getElementById(`${journalId}-tapped-thread`);
+            const tappedThreadControls = document.getElementById(`${journalId}-tapped-thread-controls`);
+            
+            if (tappedThreadToggle) {
+                tappedThreadToggle.addEventListener('change', function() {
+                    tappedThreadControls.style.display = this.checked ? 'block' : 'none';
+                    updateHeight();
+                });
+            }
+            
+            // Setup threaded end toggle handler
+            const threadedEndToggle = document.getElementById(`${journalId}-threaded-end`);
+            const threadedEndControls = document.getElementById(`${journalId}-threaded-end-controls`);
+            
+            if (threadedEndToggle) {
+                threadedEndToggle.addEventListener('change', function() {
+                    threadedEndControls.style.display = this.checked ? 'block' : 'none';
+                    updateHeight();
+                });
+            }
+            
+            // Setup remove button handler
+            const removeBtn = document.querySelector(`[data-journal-id="${journalId}"]`);
+            removeBtn.addEventListener('click', function() {
+                removeJournal(journalId, side);
+            });
+            
+            // Show/hide initial journal buttons
+            updateInitialButtons();
+            
+            // Update height
+            updateHeight();
+            
+            console.log(`Created journal: ${journalId}`);
+        }
+            journalCounter++;
+            const journalId = `journal-${side}-${journalCounter}`;
+            
+            const journalHTML = `
+                <details open>
+                    <summary>JOURNAL ${side.toUpperCase()} #${journals[side].length + 1}</summary>
+                    <div>
+                        <h4>Dimensions</h4>
+                        <p>Diameter:</p>
+                        <select id="${journalId}-diameter">
+                            <option value="0.375">3/8"</option>
+                            <option value="0.5">1/2"</option>
+                            <option value="0.625">5/8"</option>
+                            <option value="0.75" selected>3/4"</option>
+                            <option value="0.875">7/8"</option>
+                            <option value="1.0">1"</option>
+                        </select>
+                        
+                        <p style="margin-top: 8px;">Length (inches):</p>
+                        <input type="number" id="${journalId}-length" value="1" min="0.25" max="12" step="0.25">
+                        
+                        <h4 style="margin-top: 12px;">Features</h4>
+                        
+                        <div class="ios-toggle-row">
+                            <span class="ios-toggle-label">Keyway</span>
+                            <label class="ios-toggle">
+                                <input type="checkbox" id="${journalId}-keyway">
+                                <span class="ios-toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="${journalId}-keyway-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                            <p><strong>Configuration:</strong></p>
+                            <div class="toggle-container" style="margin-bottom: 12px;">
+                                <button type="button" class="toggle-option active" data-keyway="${journalId}-keyway" data-config="captivated">Captivated</button>
+                                <button type="button" class="toggle-option" data-keyway="${journalId}-keyway" data-config="end">End</button>
+                            </div>
+                            
+                            <p><strong>Keyway Size:</strong></p>
+                            <select id="${journalId}-keyway-size">
+                                <!-- Populated dynamically based on shaft diameter -->
+                            </select>
+                            
+                            <p style="margin-top: 8px;"><strong>Keyway Length:</strong></p>
+                            <div class="number-input-wrapper">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-keyway-length', -0.125)">-</button>
+                                </div>
+                                <input type="number" id="${journalId}-keyway-length" value="0.5" min="0.125" max="12" step="0.125">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-keyway-length', 0.125)">+</button>
+                                </div>
+                            </div>
+                            
+                            <div id="${journalId}-keyway-location-controls" style="display: block; margin-top: 8px;">
+                                <p><strong>Location from ${side === 'left' ? 'Left' : 'Right'} End:</strong></p>
+                                <div class="number-input-wrapper">
+                                    <div class="number-input-buttons">
+                                        <button type="button" onclick="adjustValue('${journalId}-keyway-location', -0.125)">-</button>
+                                    </div>
+                                    <input type="number" id="${journalId}-keyway-location" value="0.25" min="0" max="12" step="0.125">
+                                    <div class="number-input-buttons">
+                                        <button type="button" onclick="adjustValue('${journalId}-keyway-location', 0.125)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="ios-toggle-row">
+                            <span class="ios-toggle-label">Retaining Ring</span>
+                            <label class="ios-toggle">
+                                <input type="checkbox" id="${journalId}-retaining-ring">
+                                <span class="ios-toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="${journalId}-retaining-ring-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                            <p><strong>Diameter:</strong></p>
+                            <select id="${journalId}-retaining-ring-diameter">
+                                <option value="0.25">1/4"</option>
+                                <option value="0.375">3/8"</option>
+                                <option value="0.5">1/2"</option>
+                                <option value="0.625" selected>5/8"</option>
+                            </select>
+                            
+                            <p style="margin-top: 8px;"><strong>Width:</strong></p>
+                            <div class="number-input-wrapper">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-retaining-ring-width', -0.0625)">-</button>
+                                </div>
+                                <input type="number" id="${journalId}-retaining-ring-width" value="0.125" min="0.0625" max="1" step="0.0625">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-retaining-ring-width', 0.0625)">+</button>
+                                </div>
+                            </div>
+                            
+                            <p style="margin-top: 8px;"><strong>Location from ${side === 'left' ? 'Left' : 'Right'} End:</strong></p>
+                            <div class="number-input-wrapper">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-retaining-ring-location', -0.125)">-</button>
+                                </div>
+                                <input type="number" id="${journalId}-retaining-ring-location" value="0.5" min="0" max="12" step="0.125">
+                                <div class="number-input-buttons">
+                                    <button type="button" onclick="adjustValue('${journalId}-retaining-ring-location', 0.125)">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="advanced-features" style="display: none;">
+                            <h4 style="margin-top: 12px;">Corner Condition Overrides</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Override global corner conditions for this journal</p>
+                            
+                            <h4 style="margin-top: 12px;">Threads</h4>
+                            <div class="ios-toggle-row">
+                                <span class="ios-toggle-label">Thread</span>
+                                <label class="ios-toggle">
+                                    <input type="checkbox" id="${journalId}-thread">
+                                    <span class="ios-toggle-slider"></span>
+                                </label>
+                            </div>
+                            
+                            <div id="${journalId}-thread-controls" style="display: none; margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 3px;">
+                                <p><strong>Thread Type:</strong></p>
+                                <select id="${journalId}-thread-type">
+                                    <option value="unc">UNC (Coarse)</option>
+                                    <option value="unf">UNF (Fine)</option>
+                                </select>
+                                <p style="margin-top: 8px;"><strong>Thread Size:</strong></p>
+                                <select id="${journalId}-thread-size">
+                                    <option value="1/4-20">1/4-20</option>
+                                    <option value="5/16-18">5/16-18</option>
+                                    <option value="3/8-16">3/8-16</option>
+                                    <option value="1/2-13">1/2-13</option>
+                                    <option value="5/8-11">5/8-11</option>
+                                </select>
+                            </div>
+                            
+                            <h4 style="margin-top: 12px;">Milled Flats</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
+                            
+                            <h4 style="margin-top: 12px;">Milled Slots</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
+                            
+                            <h4 style="margin-top: 12px;">Thru Holes</h4>
+                            <p style="font-size: 12px; color: #666; font-style: italic;">Coming soon</p>
+                        </div>
+                        
+                        <button type="button" class="remove-journal" data-journal-id="${journalId}" data-side="${side}" style="margin-top: 12px; width: 100%; background: #e74c3c; color: white; border-color: #c0392b;">
+                            Remove Journal
+                        </button>
+                    </div>
+                </details>
+            `;
+            
+            // Add to journals array
+            journals[side].push({
+                id: journalId,
+                element: journalHTML
+            });
+            
+            // Insert into DOM
+            const container = document.getElementById('journals-container');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = journalHTML;
+            container.appendChild(tempDiv.firstElementChild);
+            
+            // Setup keyway toggle handler
+            const keywayToggle = document.getElementById(`${journalId}-keyway`);
+            const keywayControls = document.getElementById(`${journalId}-keyway-controls`);
+            
+            keywayToggle.addEventListener('change', function() {
+                keywayControls.style.display = this.checked ? 'block' : 'none';
+                if (this.checked) {
+                    // Populate keyway options when first enabled
+                    const diameter = parseFloat(document.getElementById(`${journalId}-diameter`).value);
+                    populateKeywayOptions(`${journalId}-keyway`, diameter);
+                }
+                updateHeight();
+            });
+            
+            // Setup captivated/end toggle buttons
+            const captivatedButtons = document.querySelectorAll(`[data-keyway="${journalId}-keyway"]`);
+            const locationControls = document.getElementById(`${journalId}-keyway-location-controls`);
+            
+            captivatedButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    captivatedButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const config = this.dataset.config;
+                    // Show location for captivated, hide for end
+                    locationControls.style.display = (config === 'captivated') ? 'block' : 'none';
+                    updateHeight();
+                });
+            });
+            
+            // Setup retaining ring toggle handler
+            const retainingRingToggle = document.getElementById(`${journalId}-retaining-ring`);
+            const retainingRingControls = document.getElementById(`${journalId}-retaining-ring-controls`);
+            
+            retainingRingToggle.addEventListener('change', function() {
+                retainingRingControls.style.display = this.checked ? 'block' : 'none';
+                updateHeight();
+            });
+            
+            // Setup diameter change handler
+            const diameterSelect = document.getElementById(`${journalId}-diameter`);
+            diameterSelect.addEventListener('change', function() {
+                if (keywayToggle.checked) {
+                    const diameter = parseFloat(this.value);
+                    populateKeywayOptions(`${journalId}-keyway`, diameter);
+                }
+                
+                // Update retaining ring diameter options to only show smaller than journal
+                const journalDiameter = parseFloat(this.value);
+                const retainingRingDiameterSelect = document.getElementById(`${journalId}-retaining-ring-diameter`);
+                Array.from(retainingRingDiameterSelect.options).forEach(option => {
+                    const optionValue = parseFloat(option.value);
+                    option.disabled = optionValue >= journalDiameter;
+                    if (option.selected && optionValue >= journalDiameter) {
+                        // Auto-select first valid option
+                        for (let i = 0; i < retainingRingDiameterSelect.options.length; i++) {
+                            if (parseFloat(retainingRingDiameterSelect.options[i].value) < journalDiameter) {
+                                retainingRingDiameterSelect.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                });
+                
+                updateHeight();
+            });
+            
+            // Setup thread toggle handler (in advanced mode section)
             const threadToggle = document.getElementById(`${journalId}-thread`);
             const threadControls = document.getElementById(`${journalId}-thread-controls`);
             
-            threadToggle.addEventListener('change', function() {
-                threadControls.style.display = this.checked ? 'block' : 'none';
-                updateHeight();
-            });
+            if (threadToggle) {
+                threadToggle.addEventListener('change', function() {
+                    threadControls.style.display = this.checked ? 'block' : 'none';
+                    updateHeight();
+                });
+            }
             
             // Setup remove button handler
             const removeBtn = document.querySelector(`[data-journal-id="${journalId}"]`);
