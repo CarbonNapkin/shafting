@@ -925,7 +925,225 @@
     </div>
 
     <script>
-        // Corner condition handlers
+        // ===========================================
+        // GLOBAL STATE
+        // ===========================================
+        let journalCounter = 0;
+        const journals = {
+            left: [],
+            right: []
+        };
+
+        // ===========================================
+        // TG&P MATERIAL RESTRICTIONS
+        // ===========================================
+        const tgpToggle = document.getElementById('finish-tgp-toggle');
+        const materialSelect = document.getElementById('material-select');
+        
+        // Store original selected value
+        let previousMaterial = materialSelect.value;
+        
+        function updateMaterialOptions() {
+            const isTGP = tgpToggle.checked;
+            const stainlessOptions = ['303', '304', '316'];
+            
+            // Get all options
+            Array.from(materialSelect.options).forEach(option => {
+                if (stainlessOptions.includes(option.value)) {
+                    if (isTGP) {
+                        // Disable stainless options when TG&P is on
+                        option.disabled = true;
+                        option.style.color = '#999';
+                        option.textContent = option.textContent.replace(' (Not available with TG&P)', '') + ' (Not available with TG&P)';
+                    } else {
+                        // Enable when TG&P is off
+                        option.disabled = false;
+                        option.style.color = '';
+                        option.textContent = option.textContent.replace(' (Not available with TG&P)', '');
+                    }
+                }
+            });
+            
+            // If current selection is stainless and TG&P just turned on, switch to 1018
+            if (isTGP && stainlessOptions.includes(materialSelect.value)) {
+                materialSelect.value = '1018';
+                alert('TG&P finish is not available for stainless steel. Material changed to 1018 Cold Rolled Steel.');
+            }
+        }
+        
+        // Initialize material restrictions on load
+        updateMaterialOptions();
+        
+        // Update when TG&P toggle changes
+        tgpToggle.addEventListener('change', function() {
+            updateMaterialOptions();
+            updateHeight();
+        });
+
+        // ===========================================
+        // JOURNAL CREATION FUNCTIONS
+        // ===========================================
+        function createJournal(side) {
+            journalCounter++;
+            const journalId = `journal-${side}-${journalCounter}`;
+            
+            const journalHTML = `
+                <details open>
+                    <summary>JOURNAL ${side.toUpperCase()} #${journals[side].length + 1}</summary>
+                    <div>
+                        <h4>Dimensions</h4>
+                        <p>Diameter:</p>
+                        <select id="${journalId}-diameter">
+                            <option value="0.375">3/8"</option>
+                            <option value="0.5">1/2"</option>
+                            <option value="0.625">5/8"</option>
+                            <option value="0.75" selected>3/4"</option>
+                            <option value="0.875">7/8"</option>
+                            <option value="1.0">1"</option>
+                        </select>
+                        
+                        <p style="margin-top: 8px;">Length (inches):</p>
+                        <input type="number" id="${journalId}-length" value="1" min="0.25" max="12" step="0.25">
+                        
+                        <h4 style="margin-top: 12px;">Features</h4>
+                        
+                        <div class="ios-toggle-row">
+                            <span class="ios-toggle-label">Keyway</span>
+                            <label class="ios-toggle">
+                                <input type="checkbox" id="${journalId}-keyway">
+                                <span class="ios-toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div class="ios-toggle-row">
+                            <span class="ios-toggle-label">Thread</span>
+                            <label class="ios-toggle">
+                                <input type="checkbox" id="${journalId}-thread">
+                                <span class="ios-toggle-slider"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="${journalId}-thread-controls" class="advanced-features" style="display: none;">
+                            <p><strong>Thread Type:</strong></p>
+                            <select id="${journalId}-thread-type">
+                                <option value="unc">UNC (Coarse)</option>
+                                <option value="unf">UNF (Fine)</option>
+                            </select>
+                            <p style="margin-top: 8px;"><strong>Thread Size:</strong></p>
+                            <select id="${journalId}-thread-size">
+                                <option value="1/4-20">1/4-20</option>
+                                <option value="5/16-18">5/16-18</option>
+                                <option value="3/8-16">3/8-16</option>
+                                <option value="1/2-13">1/2-13</option>
+                                <option value="5/8-11">5/8-11</option>
+                            </select>
+                        </div>
+                        
+                        <button type="button" class="remove-journal" data-journal-id="${journalId}" data-side="${side}" style="margin-top: 12px; width: 100%; background: #e74c3c; color: white; border-color: #c0392b;">
+                            Remove Journal
+                        </button>
+                    </div>
+                </details>
+            `;
+            
+            // Add to journals array
+            journals[side].push({
+                id: journalId,
+                element: journalHTML
+            });
+            
+            // Insert into DOM
+            const container = document.getElementById('journals-container');
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = journalHTML;
+            container.appendChild(tempDiv.firstElementChild);
+            
+            // Setup thread toggle handler
+            const threadToggle = document.getElementById(`${journalId}-thread`);
+            const threadControls = document.getElementById(`${journalId}-thread-controls`);
+            
+            threadToggle.addEventListener('change', function() {
+                threadControls.style.display = this.checked ? 'block' : 'none';
+                updateHeight();
+            });
+            
+            // Setup remove button handler
+            const removeBtn = document.querySelector(`[data-journal-id="${journalId}"]`);
+            removeBtn.addEventListener('click', function() {
+                removeJournal(journalId, side);
+            });
+            
+            // Show/hide initial journal buttons
+            updateInitialButtons();
+            
+            // Update height
+            updateHeight();
+            
+            console.log(`Created journal: ${journalId}`);
+        }
+        
+        function removeJournal(journalId, side) {
+            // Find and remove from array
+            const index = journals[side].findIndex(j => j.id === journalId);
+            if (index > -1) {
+                journals[side].splice(index, 1);
+            }
+            
+            // Remove from DOM
+            const detailsElement = document.querySelector(`[data-journal-id="${journalId}"]`).closest('details');
+            detailsElement.remove();
+            
+            // Renumber remaining journals
+            renumberJournals(side);
+            
+            // Show/hide initial journal buttons
+            updateInitialButtons();
+            
+            // Update height
+            updateHeight();
+            
+            console.log(`Removed journal: ${journalId}`);
+        }
+        
+        function renumberJournals(side) {
+            const journalElements = document.querySelectorAll(`details summary`);
+            let counter = 1;
+            
+            journalElements.forEach(summary => {
+                const text = summary.textContent;
+                if (text.includes(`JOURNAL ${side.toUpperCase()}`)) {
+                    summary.textContent = `JOURNAL ${side.toUpperCase()} #${counter}`;
+                    counter++;
+                }
+            });
+        }
+        
+        function updateInitialButtons() {
+            const initialButtons = document.getElementById('initial-journal-buttons');
+            const hasAnyJournals = journals.left.length > 0 || journals.right.length > 0;
+            
+            // Hide initial buttons if any journals exist, show if none exist
+            initialButtons.style.display = hasAnyJournals ? 'none' : 'flex';
+        }
+
+        // ===========================================
+        // BUTTON CLICK HANDLERS
+        // ===========================================
+        document.querySelectorAll('.add-journal-left').forEach(btn => {
+            btn.addEventListener('click', function() {
+                createJournal('left');
+            });
+        });
+        
+        document.querySelectorAll('.add-journal-right').forEach(btn => {
+            btn.addEventListener('click', function() {
+                createJournal('right');
+            });
+        });
+
+        // ===========================================
+        // CORNER CONDITION HANDLERS
+        // ===========================================
         document.querySelectorAll('input[name="global-inside"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 document.getElementById('global-inside-chamfer-controls').style.display = 'none';
@@ -953,8 +1171,10 @@
                 updateHeight();
             });
         });
-        
-        // Send height updates to parent window
+
+        // ===========================================
+        // HEIGHT UPDATE SYSTEM
+        // ===========================================
         function updateHeight() {
             const height = document.documentElement.scrollHeight;
             window.parent.postMessage({type: 'resize', height: height}, '*');
@@ -978,6 +1198,7 @@
         });
         
         console.log('Shaft Configurator loaded - Standalone version for iframe');
+        console.log('Features: TG&P material restrictions, dynamic journal creation');
     </script>
 </body>
 </html>
